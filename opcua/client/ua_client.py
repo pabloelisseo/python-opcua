@@ -157,6 +157,18 @@ class UASocketClient(object):
         sock.settimeout(None)
         # nodelay necessary to avoid packing in one frame, some servers do not like it
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        # send keepalive. It activates after 1 minute,
+        # then sends a keepalive ping every 30 seconds
+        # and closes the conection after 5 failed ping
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        # Valid in linux (and some Windows implementations)
+        if hasattr(socket, "TCP_KEEPIDLE") and hasattr(socket, "TCP_KEEPINTVL") and hasattr(socket, "TCP_KEEPCNT"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 1 * 60)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 5)
+        # Valid in OSX and Windows
+        elif hasattr(socket, "SIO_KEEPALIVE_VALS"):
+            sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, 1 * 60 * 1000, 5 * 60 * 1000))
         self._socket = ua.utils.SocketWrapper(sock)
         self.start()
 
